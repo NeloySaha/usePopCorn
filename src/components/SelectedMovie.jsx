@@ -1,12 +1,18 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StarRating } from "./StarRating";
 import { Loader } from "./Loader";
 
-export const SelectedMovie = ({ selectedId, onCloseMovie, addToWatch }) => {
+export const SelectedMovie = ({
+  selectedId,
+  onCloseMovie,
+  addToWatch,
+  watched,
+}) => {
   const [movie, setMovie] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const countRef = useRef(0);
 
   const {
     Title: title,
@@ -22,6 +28,20 @@ export const SelectedMovie = ({ selectedId, onCloseMovie, addToWatch }) => {
     minutes,
     imdbID,
   } = movie;
+
+  const alreadyWatched = watched.some(
+    (watchedMovie) => watchedMovie.imdbID === selectedId
+  );
+
+  useEffect(() => {
+    if (alreadyWatched) {
+      const watchedMovieObj = watched.find(
+        (watchedMovie) => watchedMovie.imdbID === selectedId
+      );
+
+      setUserRating(watchedMovieObj.userRating);
+    }
+  }, [alreadyWatched]);
 
   useEffect(() => {
     const getMovieDetails = async () => {
@@ -56,6 +76,12 @@ export const SelectedMovie = ({ selectedId, onCloseMovie, addToWatch }) => {
     };
   }, [title]);
 
+  useEffect(() => {
+    userRating > 0 && countRef.current++;
+
+    console.log(countRef.current);
+  }, [userRating]);
+
   return (
     <div className="details">
       {isLoading ? (
@@ -83,28 +109,36 @@ export const SelectedMovie = ({ selectedId, onCloseMovie, addToWatch }) => {
 
           <section>
             <div className="rating">
-              <StarRating
-                maxRating={10}
-                size={24}
-                onSetRating={setUserRating}
-              />
+              {alreadyWatched ? (
+                <p>You have rated this movie {userRating} ⭐️</p>
+              ) : (
+                <>
+                  <StarRating
+                    maxRating={10}
+                    size={24}
+                    onSetRating={setUserRating}
+                  />
 
-              <button
-                className="btn-add"
-                onClick={() => {
-                  addToWatch({
-                    imdbID,
-                    Title: title,
-                    Year: released,
-                    Poster: poster,
-                    runtime: +runtime.split(" ").at(0),
-                    imdbRating,
-                    userRating,
-                  });
-                }}
-              >
-                + Add to List
-              </button>
+                  {userRating > 0 && (
+                    <button
+                      className="btn-add"
+                      onClick={() => {
+                        addToWatch({
+                          imdbID,
+                          Title: title,
+                          Year: released,
+                          Poster: poster,
+                          runtime: +runtime.split(" ").at(0),
+                          imdbRating,
+                          userRating,
+                        });
+                      }}
+                    >
+                      + Add to List
+                    </button>
+                  )}
+                </>
+              )}
             </div>
             <p>
               <em>{plot}</em>

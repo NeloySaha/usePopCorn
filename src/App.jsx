@@ -14,17 +14,15 @@ import { WatchedSummary } from "./components/WatchedSummary";
 import { Loader } from "./components/Loader";
 import { ErrorMessage } from "./components/ErrorMessage";
 import { SelectedMovie } from "./components/SelectedMovie";
+import { useMovies } from "./customHooks/useMovies";
+import { useLocalStorageState } from "./customHooks/useLocalStorageState";
+import { useKey } from "./customHooks/useKey";
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState(
-    JSON.parse(localStorage.getItem("watchList")) || []
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
   const [selectedId, setSelectedId] = useState(null);
+  const { movies, isLoading, error } = useMovies(query, setSelectedId);
+  const [watched, setWatched] = useLocalStorageState([], "watchList");
 
   const handleWatchList = (movie) => {
     setWatched((prevWatched) => {
@@ -50,66 +48,7 @@ export default function App() {
     });
   };
 
-  useEffect(() => {
-    localStorage.setItem("watchList", JSON.stringify(watched));
-  }, [watched]);
-
-  useEffect(() => {
-    const getMovieData = async (controller) => {
-      try {
-        setIsLoading(true);
-        setError("");
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL_PREFIX}&s=${query}`,
-          { signal: controller.signal }
-        );
-
-        if (!res.ok) throw new Error("Something went wrong!");
-
-        const data = await res.json();
-
-        if (data.Response === "False" || query.length === 0)
-          throw new Error("Movie not found");
-
-        setMovies(data.Search);
-        setError("");
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.log(err);
-          setError(err.message);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (query.length < 2) {
-      setMovies([]);
-      setError("");
-      return;
-    }
-
-    const controller = new AbortController();
-
-    setSelectedId(null);
-    getMovieData(controller);
-
-    return () => {
-      controller.abort();
-    };
-  }, [query]);
-
-  useEffect(() => {
-    const callback = (e) => {
-      e.code === "Escape" ? setSelectedId(null) : null;
-    };
-
-    document.addEventListener("keydown", callback);
-
-    return () => {
-      document.removeEventListener("keydown", callback);
-    };
-  }, []);
+  useKey("Escape", setSelectedId);
 
   return (
     <>
@@ -130,9 +69,11 @@ export default function App() {
         <Box>
           {selectedId ? (
             <SelectedMovie
+              key={selectedId}
               selectedId={selectedId}
               onCloseMovie={() => setSelectedId(null)}
               addToWatch={handleWatchList}
+              watched={watched}
             />
           ) : (
             <>
